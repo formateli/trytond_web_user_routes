@@ -44,4 +44,6 @@ MANIFEST
 *.pdf
 *.svg
 *.png
-*.csv
+*.csvi
+
+*.swp
