@@ -10,16 +10,11 @@ License
 -------
 
 See LICENSE
-Copyright
----------
-
-See COPYRIGHT
 
 Copyright
 ---------
 
 See COPYRIGHT
-
 
 Installing
 ----------
