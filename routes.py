@@ -2,6 +2,8 @@
 # The COPYRIGHT file at the top level of this repository contains
 # the full copyright notices and license terms.
 from trytond.wsgi import app
+from trytond.res.user import PasswordError
+from trytond.modules.web_user.exceptions import UserValidationError
 from trytond.protocols.wrappers import (allow_null_origin,
     Response, abort, with_pool, with_transaction)
 from trytond.transaction import Transaction, without_check_access
@@ -18,23 +20,25 @@ def web_user_register(request, pool):
     WebUser = pool.get('web.user')
     args = request.get_json(False)
     try:
-        with without_check_access():
-            user = WebUser.search([('email', '=', args['username'])])
-            if user:
-                return Response('User already exists.', 403)
-            user = WebUser(
-                    email = args['username'],
-                    password = args['password']
-                    )
-            User.validate_password(args['password'], [user])
-            user.save()
+        #with without_check_access():
+        user = WebUser.search([('email', '=', args['username'])])
+        if user:
+            return Response('User already exists.', 403)
+        user = WebUser(
+                email = args['username'],
+                password = args['password']
+                )
+        #User.check_valid_email([user])
+        User.validate_password(args['password'], [user])
+        user.save()
 
-            #TODO Send confirmation email
+        #TODO Send confirmation email
 
+    except (PasswordError, UserValidationError) as e:
+        return response_exception(e, 403)
     except Exception as e:
-        #TODO improve Exception catch.
-        # password errors reponse should be 403
-        return Response(e.message, 500)
+        return response_exception(e, 500)
+
     return {'id': user.id}
 
 
@@ -45,3 +49,11 @@ def web_user_register(request, pool):
 def web_user_token(request, pool, user):
     WebUser = pool.get('web.user')
     args = request.get_json(False)
+
+
+def response_exception(e, status):
+    Transaction().rollback()
+    if hasattr(e, 'message'):
+        return Response(e.message, status)
+    else:
+        return Response(str(e), status)
