@@ -20,7 +20,6 @@ def web_user_register(request, pool):
     WebUser = pool.get('web.user')
     args = request.get_json(False)
     try:
-        #with without_check_access():
         user = WebUser.search([('email', '=', args['username'])])
         if user:
             return Response('User already exists.', 403)
@@ -28,7 +27,6 @@ def web_user_register(request, pool):
                 email = args['username'],
                 password = args['password']
                 )
-        #User.check_valid_email([user])
         User.validate_password(args['password'], [user])
         user.save()
 
@@ -42,18 +40,84 @@ def web_user_register(request, pool):
     return {'id': user.id}
 
 
-@app.route('/<database_name>/web-user-tokens', methods=['POST'])
+@app.route('/<database_name>/web-user-tokens', 
+        methods=['POST', 'PUT', 'DELETE'])
 @allow_null_origin
 @with_pool
 @with_transaction()
-def web_user_token(request, pool, user):
+def web_user_token(request, pool):
     WebUser = pool.get('web.user')
-    args = request.get_json(False)
+    UserSession = pool.get('web.user.session')
+
+    auth = request.authorization
+
+    #logger.info(str(auth))
+    #logger.info(str(auth.type))
+    #logger.info(str(auth.parameters))
+
+    try:
+        if request.method == 'POST':
+            user = WebUser.authenticate(auth['username'], auth['password'])
+            if user is None:
+                return response_exception('Not found.', 401)
+            logger.info('user: ' + str(user))
+            key = user.new_session()
+            return {'access_token': key}
+        elif request.method == 'PUT':
+            sessions = UserSession.search([('key', '=', auth.token)])
+            session = None
+            if sessions:
+                session = sessions[0]
+            if session is None:
+                return response_exception('Session not found.', 404)
+            if sesion.expired:
+                user = sesion.user
+                UserSession.remove(session.key)
+                key = user.new_session()
+                return {'access_token': key}
+            return {'access_token': session.key}
+        elif request.method == 'DELETE':
+            UserSession.remove(auth.token)
+        else:
+            return response_exception('Invalid request method.', 500)
+
+    except Exception as e:
+        return response_exception(e, 500)
+
+
+@app.route('/<database_name>/web-user-me', methods=['GET'])
+@allow_null_origin
+@with_pool
+@with_transaction()
+def web_user_me(request, pool):
+    WebUser = pool.get('web.user')
+
+    auth = request.authorization
+
+    #logger.info(str(auth))
+    #logger.info(str(auth.type))
+    #logger.i<nfo(str(auth.parameters))
+    #logger.info(str(auth.token))
+
+    try:
+        user = WebUser.get_user(auth.token)
+        if user is None:
+            return response_exception('Invalid.', 401)
+        return {'id': user.id, 'username': user.email}
+    except Exception as e:
+        return response_exception(e, 500)
 
 
 def response_exception(e, status):
     Transaction().rollback()
     if hasattr(e, 'message'):
-        return Response(e.message, status)
+        message = e.message
     else:
-        return Response(str(e), status)
+        message = str(e)
+
+    if status >= 500:
+        logger.error(message)
+    else:
+        logger.warn(message)
+
+    return Response(message, status)
