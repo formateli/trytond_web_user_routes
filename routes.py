@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @with_pool
 @with_transaction()
 def web_user_register(request, pool):
+    Party = pool.get('party.party')
     User = pool.get('res.user')
     WebUser = pool.get('web.user')
     args = request.get_json(False)
@@ -25,7 +26,10 @@ def web_user_register(request, pool):
             return Response('User already exists.', 403)
         user = WebUser(
                 email = args['username'],
-                password = args['password']
+                password = args['password'],
+                party = Party(
+                    name = args['name']
+                    )
                 )
         User.validate_password(args['password'], [user])
         user.save()
@@ -103,7 +107,7 @@ def web_user_me(request, pool):
         user = WebUser.get_user(auth.token)
         if user is None:
             return response_exception('Invalid.', 401)
-        return {'id': user.id, 'username': user.email}
+        return user.to_json()
     except Exception as e:
         return response_exception(e, 500)
 
