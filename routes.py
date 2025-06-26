@@ -19,6 +19,7 @@ def web_user_register(request, pool):
     User = pool.get('res.user')
     WebUser = pool.get('web.user')
     args = request.get_json(False)
+    logger.info(str(args))
     try:
         user = WebUser.search([('email', '=', args['username'])])
         if user:
@@ -68,15 +69,16 @@ def web_user_token(request, pool):
             if sessions:
                 session = sessions[0]
             if session is None:
-                logger.info('PUT session not found %s', auth.token)
                 return _response_exception('Session not found.', 404)
             key = session.key
             if session.expired:
                 logger.info('PUT session expired %s', key)
+                if not user.stay_logged_in:
+                    return _response_exception('Session expired.', 401)
                 user = session.user
                 UserSession.remove(session.key)
                 key = user.new_session()
-                logger.info('PUT new session %s', key)
+                logger.info('PUT renew session %s', key)
             return {'access_token': key}
 
         return _response_exception('Invalid request method.', 405)

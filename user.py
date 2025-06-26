@@ -2,10 +2,12 @@
 # The COPYRIGHT file at the top level of this repository contains
 # the full copyright notices and license terms.
 from trytond.pool import Pool, PoolMeta
-
+from trytond.model import fields
 
 class User(metaclass=PoolMeta):
     __name__ = 'web.user'
+
+    stay_logged_in = fields.Boolean('Stay logged in')
 
     def to_json(self):
         if self.party:
@@ -26,6 +28,7 @@ class User(metaclass=PoolMeta):
         user = cls(
             email = args['username'],
             password = args['password'],
+            stay_logged_in = args['stay_logged_in'],
             party = Party(
                     name = args['name']
                 )
