@@ -1,0 +1,17 @@
+.App {
+  padding: 0;
+}
+
+.Header {
+  border-bottom: 1px solid #ddd;
+}
+
+.InputField {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.CheckField {
+  margin-left: 15px;
+  margin-right: 15px;
+}

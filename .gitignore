@@ -38,12 +38,5 @@
 ehthumbs.db
 Thumbs.db
 
-######################
-MANIFEST
-*.html
-*.pdf
-*.svg
-*.png
-*.csvi
-
 *.swp
+TODO
