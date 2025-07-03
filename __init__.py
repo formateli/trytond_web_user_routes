@@ -4,9 +4,8 @@
 from trytond.pool import Pool
 from . import user
 from . import routes
-from web_user import WebUserMixin
 
-__all__ = ['routes', 'WebUserMixin']
+__all__ = ['routes']
 
 def register():
     Pool.register(
