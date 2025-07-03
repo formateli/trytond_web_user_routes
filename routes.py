@@ -8,6 +8,7 @@ from .web_user_routes import WebUserRoutes
 
 logger = logging.getLogger(__name__)
 
+
 @app.route('/<database_name>/web-user-register', methods=['POST'])
 @with_pool
 @with_transaction()

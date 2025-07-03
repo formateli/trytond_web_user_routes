@@ -2,7 +2,11 @@
 Web User Routes
 ###############
 
-`Tryton <https://tryton.org>`_  module that extends `Tryton Web User <https://docs.tryton.org/latest/modules-web-user/index.html>`_ module with web routes.
+`Tryton <https://tryton.org>`_ module that extends `Tryton Web User <https://docs.tryton.org/latest/modules-web-user/index.html>`_ with web routes.
+
+  - User Login and Registration process.
+  - User verification and password reset via email.
+  - User Authentication and Autorization (token management).
 
 An example `Tryton Web User and React <https://github.com/formateli/tryton_web_user_react>`_ shows how it can be implemented.
 

@@ -15,7 +15,6 @@ class WebUserRoutes:
         User = pool.get('res.user')
         WebUser = pool.get('web.user')
         args = request.get_json(False)
-        self.logger.info(str(args))
         try:
             user = WebUser.search([('email', '=', args['username'])])
             if user:
@@ -23,6 +22,8 @@ class WebUserRoutes:
             user = WebUser.create_web_user(pool, args)
             User.validate_password(args['password'], [user])
             user.save()
+            self.logger.info(
+                    '{} registered. Waiting for verification.'.format(user.email))
             return user.to_json()
 
            #TODO Send confirmation email
@@ -40,7 +41,6 @@ class WebUserRoutes:
 
         try:
             if request.method == 'DELETE':
-                self.logger.info('DELETE %s', auth.token)
                 UserSession.remove(auth.token)
                 return self.response(None, 204)
 
@@ -48,7 +48,9 @@ class WebUserRoutes:
                 user = WebUser.authenticate(auth['username'], auth['password'])
                 if user is None:
                     return self._response_exception(
-                            'Not found. {}'.format(auth['username']), 401)
+                        'User {} not found. Verify your email and password.'.format(
+                            auth['username']), 401)
+                #TODO if not user.email_verified()...
                 key = user.new_session()
                 return {'access_token': key}
 
@@ -68,13 +70,13 @@ class WebUserRoutes:
                     user = session.user
                     UserSession.remove(session.key)
                     key = user.new_session()
-                    self.logger.info('PUT renew session %s', key)
                 return {'access_token': key}
 
-            return self._response_exception('Invalid request method.', 405)
+            return self._response_exception(
+                'Invalid request method {}.'.format(request.method), 405)
 
         except Exception as e:
-                return self._response_exception(e, 500)
+            return self._response_exception(e, 500)
 
     def web_user_me(self, request, pool):
         WebUser = pool.get('web.user')
