@@ -19,6 +19,7 @@ class User(metaclass=PoolMeta):
             'id': self.id,
             'name': name,
             'email': self.email,
+            'avatar_uuid': self.avatars[0].uuid if self.avatars else -1
         }
         return res
 

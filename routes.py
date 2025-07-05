@@ -32,3 +32,11 @@ def web_user_token(request, pool):
 def web_user_me(request, pool):
     wur = WebUserRoutes(Response, logger)
     return wur.web_user_me(request, pool)
+
+
+@app.route('/<database_name>/web-user-avatar/<uuid>', methods={'GET'})
+@with_pool
+@with_transaction()
+def web_user_avatar(request, pool, uuid):
+    wur = WebUserRoutes(Response, logger)
+    return wur.web_user_avatar(request, pool, uuid)

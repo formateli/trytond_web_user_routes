@@ -22,9 +22,10 @@ class WebUserRoutes:
             user = WebUser.create_web_user(pool, args)
             User.validate_password(args['password'], [user])
             user.save()
+            User.generate_avatar([user])
             self.logger.info(
                     '{} registered. Waiting for verification.'.format(user.email))
-            return user.to_json()
+            return self.response(None, 204)
 
            #TODO Send confirmation email
 
@@ -90,6 +91,29 @@ class WebUserRoutes:
             return user.to_json()
         except Exception as e:
             return self._response_exception(e, 500)
+
+    def web_user_avatar(self, request, pool, uuid):
+        self.logger.info('Getting avatar {}'.format(uuid))
+        Avatar = pool.get('ir.avatar')
+
+        try:
+            avatars = Avatar.search([
+                    ('uuid', '=', uuid),
+                    ])
+            if not avatars:
+                return self._response_exception('Avatar not found', 404)
+            avatar = avatars[0]
+
+            size = int(request.args.get('s', 32))
+
+            response = self.response(avatar.get(size), mimetype='image/jpeg')
+            #TODO Cache avatar
+            #response.headers['Cache-Control'] = (
+            #    'max-age=%s, public' % AVATAR_TIMEOUT)
+            response.add_etag()
+            return response
+        except Exception as e:
+            self._response_exception(e, 500)
 
     def _response_exception(self, e, status):
         Transaction().rollback()
