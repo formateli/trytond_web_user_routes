@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 @with_pool
 @with_transaction()
 def web_user_register(request, pool):
-    wur = WebUserRoutes(Response, logger)
-    return wur.web_user_register(request, pool)
+    return WebUserRoutes.web_user_register(
+            Response, request, pool, logger)
 
 
 @app.route('/<database_name>/web-user-tokens',
@@ -22,21 +22,21 @@ def web_user_register(request, pool):
 @with_pool
 @with_transaction()
 def web_user_token(request, pool):
-    wur = WebUserRoutes(Response, logger)
-    return wur.web_user_token(request, pool)
+    return WebUserRoutes.web_user_token(
+            Response, request, pool, logger)
 
 
 @app.route('/<database_name>/web-user-me', methods=['GET'])
 @with_pool
 @with_transaction()
 def web_user_me(request, pool):
-    wur = WebUserRoutes(Response, logger)
-    return wur.web_user_me(request, pool)
+    return WebUserRoutes.web_user_me(
+            Response, request, pool, logger)
 
 
 @app.route('/<database_name>/web-user-avatar/<uuid>', methods={'GET'})
 @with_pool
 @with_transaction()
 def web_user_avatar(request, pool, uuid):
-    wur = WebUserRoutes(Response, logger)
-    return wur.web_user_avatar(request, pool, uuid)
+    return WebUserRoutes.web_user_avatar(
+            Response, request, pool, logger, uuid)
