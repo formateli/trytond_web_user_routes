@@ -17,30 +17,35 @@ class WebUserRoutes:
     def web_user_register(response, request, pool, logger, auth_email=True):
         User = pool.get('res.user')
         WebUser = pool.get('web.user')
-        args = request.get_json(False)
+
         try:
+            args = request.get_json(False)
+
             user = WebUser.search([('email', '=', args['username'])])
             if user:
                 return WebUserRoutes._response_exception(
-                    response, 
+                    response,
                     'User with email {} already exists.'.format(args['username']),
                     403, logger)
             user = WebUser.create_web_user(pool, args)
             User.validate_password(args['password'], [user])
             user.save()
             User.generate_avatar([user])
+            logger.info("AUTH_EMAIL: {}".format(auth_email))
+            if auth_email:
+                logger.info('Sending email verification to {}'.format(user.email))
+                WebUserRoutes._check_email_config()
+                WebUser.validate_email([user])
             logger.info(
                     '{} registered. Waiting for verification.'.format(user.email))
-            return response(None, 204)
 
-            if auth_email:
-                pass
-                #TODO Send confirmation email
+            return response(None, 204)
 
         except (PasswordError, UserValidationError) as e:
             return WebUserRoutes._response_exception(
                     response, e, 403, logger)
         except Exception as e:
+            raise Exception(e) from e
             return WebUserRoutes._response_exception(
                     response, e, 500, logger)
 
@@ -49,9 +54,9 @@ class WebUserRoutes:
         WebUser = pool.get('web.user')
         UserSession = pool.get('web.user.session')
 
-        auth = request.authorization
-
         try:
+            auth = request.authorization
+
             if request.method == 'DELETE':
                 UserSession.remove(auth.token)
                 return response(None, 204)
@@ -108,9 +113,8 @@ class WebUserRoutes:
     def web_user_me(response, request, pool, logger):
         WebUser = pool.get('web.user')
 
-        auth = request.authorization
-
         try:
+            auth = request.authorization
             user = WebUser.get_user(auth.token)
             if user is None:
                 return WebUserRoutes._response_exception(
@@ -140,9 +144,23 @@ class WebUserRoutes:
             response.headers['Cache-Control'] = (
                 'max-age=%s, public' % AVATAR_TIMEOUT)
             response.add_etag()
+
             return response
+
         except Exception as e:
             WebUserRoutes._response_exception(response, e, 500, logger)
+
+    @staticmethod
+    def _check_email_config():
+        def get_config(section, key):
+            val = config.get(section, key, default=None)
+            if val is None:
+                err = "{0}/{1} not configured.".format(section, key)
+                raise ValueError(err)
+        get_config('web', 'reset_password_url') 
+        get_config('web', 'email_validation_url')
+        get_config('email', 'uri')
+        get_config('email', 'from')
 
     @staticmethod
     def _response_exception(response, e, status, logger):
