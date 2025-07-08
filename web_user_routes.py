@@ -14,14 +14,17 @@ AVATAR_TIMEOUT = config.getint(
 class WebUserRoutes:
 
     @staticmethod
-    def web_user_register(response, request, pool, logger):
+    def web_user_register(response, request, pool, logger, auth_email=True):
         User = pool.get('res.user')
         WebUser = pool.get('web.user')
         args = request.get_json(False)
         try:
             user = WebUser.search([('email', '=', args['username'])])
             if user:
-                return response('User already exists.', 403)
+                return WebUserRoutes._response_exception(
+                    response, 
+                    'User with email {} already exists.'.format(args['username']),
+                    403, logger)
             user = WebUser.create_web_user(pool, args)
             User.validate_password(args['password'], [user])
             user.save()
@@ -30,7 +33,9 @@ class WebUserRoutes:
                     '{} registered. Waiting for verification.'.format(user.email))
             return response(None, 204)
 
-           #TODO Send confirmation email
+            if auth_email:
+                pass
+                #TODO Send confirmation email
 
         except (PasswordError, UserValidationError) as e:
             return WebUserRoutes._response_exception(
@@ -40,7 +45,7 @@ class WebUserRoutes:
                     response, e, 500, logger)
 
     @staticmethod
-    def web_user_token(response, request, pool, logger):
+    def web_user_token(response, request, pool, logger, auth_email=True):
         WebUser = pool.get('web.user')
         UserSession = pool.get('web.user.session')
 
@@ -59,7 +64,14 @@ class WebUserRoutes:
                         'User {} not found. Verify your email and password.'.format(
                             auth['username']),
                         401, logger)
-                #TODO if not user.email_verified()...
+                if auth_email:
+                    if not user.email_valid:
+                        return WebUserRoutes._response_exception(
+                            response,
+                            'Email {0} for User {1} has not been validated.'.format(
+                                user.email, user.party.name),
+                            401, logger)
+
                 key = user.new_session()
                 return {'access_token': key}
 

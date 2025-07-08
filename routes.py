@@ -7,14 +7,14 @@ from trytond.protocols.wrappers import Response, with_pool, with_transaction
 from .web_user_routes import WebUserRoutes
 
 logger = logging.getLogger(__name__)
-
+AUTH = False
 
 @app.route('/<database_name>/web-user-register', methods=['POST'])
 @with_pool
 @with_transaction()
 def web_user_register(request, pool):
     return WebUserRoutes.web_user_register(
-            Response, request, pool, logger)
+            Response, request, pool, logger, AUTH)
 
 
 @app.route('/<database_name>/web-user-tokens',
@@ -23,7 +23,7 @@ def web_user_register(request, pool):
 @with_transaction()
 def web_user_token(request, pool):
     return WebUserRoutes.web_user_token(
-            Response, request, pool, logger)
+            Response, request, pool, logger, AUTH)
 
 
 @app.route('/<database_name>/web-user-me', methods=['GET'])
