@@ -45,7 +45,6 @@ class WebUserRoutes:
             return WebUserRoutes._response_exception(
                     response, e, 403, logger)
         except Exception as e:
-            raise Exception(e) from e
             return WebUserRoutes._response_exception(
                     response, e, 500, logger)
 
@@ -74,7 +73,8 @@ class WebUserRoutes:
                         return WebUserRoutes._response_exception(
                             response,
                             'Email {0} for User {1} has not been validated.'.format(
-                                user.email, user.party.name),
+                                user.email,
+                                user.party.name if user.party else 'Unkwnon'),
                             401, logger)
 
                 key = user.new_session()
@@ -121,6 +121,33 @@ class WebUserRoutes:
                     response, 'Invalid token.', 401, logger)
             return user.to_json()
         except Exception as e:
+            return WebUserRoutes._response_exception(
+                    response, e, 500, logger)
+
+    @staticmethod
+    def web_user_email_verify(response, request, pool, logger):
+        WebUser = pool.get('web.user')
+
+        try:
+            args = request.get_json(False)
+            logger.info('TOKEN: ' + args['token'])
+
+            fr = WebUser.search([('email', '=', 'formateli@gmail.com')])[0]
+            logger.info("FR TOKEN: {}".format(fr.email_token))
+
+            users = WebUser.validate_email_token([args['token']])
+            if not users:
+                return WebUserRoutes._response_exception(
+                    response, 'Invalid email verification token',
+                    500, logger)
+
+            msg = "Email {} verified successfully".format(
+                users[0].email)
+            logger.info(msg)
+            return {'message': msg}
+
+        except Exception as e:
+            raise Exception(e) from e
             return WebUserRoutes._response_exception(
                     response, e, 500, logger)
 
