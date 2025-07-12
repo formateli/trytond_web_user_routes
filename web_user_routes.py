@@ -1,6 +1,7 @@
 # This file is part of web user routes module.
 # The COPYRIGHT file at the top level of this repository contains
 # the full copyright notices and license terms.
+from functools import wraps
 from trytond.config import config
 from trytond.transaction import Transaction
 from trytond.res.user import PasswordError
@@ -9,6 +10,41 @@ from trytond.modules.web_user.exceptions import UserValidationError
 
 AVATAR_TIMEOUT = config.getint(
     'web', 'avatar_timeout', default=7 * 24 * 60 * 60)
+
+
+def login_required():
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            response = args[0]
+            request = args[1]
+            pool = args[2]
+            logger = args[3]
+            UserSession = pool.get('web.user.session')
+
+            try:
+                auth = request.authorization
+                session = None
+                sessions = UserSession.search([('key', '=', auth.token)])
+                if sessions:
+                    session = sessions[0]
+                if session is None:
+                    return _response_exception(
+                        response, 'Session not found.', 401, logger)
+
+                if session.expired and not session.user.stay_logged_in:
+                    return _response_exception(
+                        response, 'Session expired.', 401, logger)
+
+                nargs = args + (session.user,)
+
+                return func(*nargs, **kwargs)
+
+            except Exception as e:
+                return _response_exception(
+                        response, e, 500, logger)
+        return wrapper
+    return decorator
 
 
 class WebUserRoutes:
@@ -23,7 +59,7 @@ class WebUserRoutes:
 
             user = WebUser.search([('email', '=', args['username'])])
             if user:
-                return WebUserRoutes._response_exception(
+                return _response_exception(
                     response,
                     'User with email {} already exists.'.format(args['username']),
                     403, logger)
@@ -42,10 +78,10 @@ class WebUserRoutes:
             return response(None, 204)
 
         except (PasswordError, UserValidationError) as e:
-            return WebUserRoutes._response_exception(
+            return _response_exception(
                     response, e, 403, logger)
         except Exception as e:
-            return WebUserRoutes._response_exception(
+            return _response_exception(
                     response, e, 500, logger)
 
     @staticmethod
@@ -63,14 +99,14 @@ class WebUserRoutes:
             if request.method == 'POST':
                 user = WebUser.authenticate(auth['username'], auth['password'])
                 if user is None:
-                    return WebUserRoutes._response_exception(
+                    return _response_exception(
                         response,
                         'User {} not found. Verify your email and password.'.format(
                             auth['username']),
                         401, logger)
                 if auth_email:
                     if not user.email_valid:
-                        return WebUserRoutes._response_exception(
+                        return _response_exception(
                             response,
                             'Email {0} for User {1} has not been validated.'.format(
                                 user.email,
@@ -86,12 +122,12 @@ class WebUserRoutes:
                 if sessions:
                     session = sessions[0]
                 if session is None:
-                    return WebUserRoutes._response_exception(
+                    return _response_exception(
                             response, 'Session not found.', 404, logger)
                 key = session.key
                 if session.expired:
                     if not user.stay_logged_in:
-                        return WebUserRoutes._response_exception(
+                        return _response_exception(
                                 response,
                                 'Session expired for {}'.format(user.email),
                                 401, logger)
@@ -100,14 +136,13 @@ class WebUserRoutes:
                     key = user.new_session()
                 return {'access_token': key}
 
-            return WebUserRoutes._response_exception(
+            return _response_exception(
                 response,
                 'Invalid request method {}.'.format(request.method),
                 405, logger)
 
         except Exception as e:
-            return WebUserRoutes._response_exception(
-                    response, e, 500, logger)
+            return _response_exception(response, e, 500, logger)
 
     @staticmethod
     def web_user_me(response, request, pool, logger):
@@ -117,11 +152,41 @@ class WebUserRoutes:
             auth = request.authorization
             user = WebUser.get_user(auth.token)
             if user is None:
-                return WebUserRoutes._response_exception(
+                return _response_exception(
                     response, 'Invalid token.', 401, logger)
             return user.to_json()
         except Exception as e:
-            return WebUserRoutes._response_exception(
+            return _response_exception(
+                    response, e, 500, logger)
+
+    @login_required()
+    @staticmethod
+    def web_user_password(response, request, pool, logger, user=None):
+        User = pool.get('res.user')
+        WebUser = pool.get('web.user')
+
+        try:
+            args = request.get_json(False)
+
+            old_user = WebUser.authenticate(
+                    user.email, args['old_password'])
+            if old_user is None:
+                return _response_exception(
+                        response, 'Invalid password.', 404, logger)
+
+            User.validate_password(args['password'], [user])
+            user.password = args['password']
+            user.save()
+            msg = "Password for {} changed successfully".format(
+                user.party.name)
+            logger.info(msg)
+            return {'message': msg}
+
+        except (PasswordError, UserValidationError) as e:
+            return _response_exception(
+                    response, e, 403, logger)
+        except Exception as e:
+            return _response_exception(
                     response, e, 500, logger)
 
     @staticmethod
@@ -137,7 +202,7 @@ class WebUserRoutes:
 
             users = WebUser.validate_email_token([args['token']])
             if not users:
-                return WebUserRoutes._response_exception(
+                return _response_exception(
                     response, 'Invalid email verification token',
                     500, logger)
 
@@ -147,13 +212,11 @@ class WebUserRoutes:
             return {'message': msg}
 
         except Exception as e:
-            raise Exception(e) from e
-            return WebUserRoutes._response_exception(
+            return _response_exception(
                     response, e, 500, logger)
 
     @staticmethod
     def web_user_avatar(response, request, pool, logger, uuid):
-        logger.info('Getting avatar {}'.format(uuid))
         Avatar = pool.get('ir.avatar')
 
         try:
@@ -161,7 +224,7 @@ class WebUserRoutes:
                     ('uuid', '=', uuid),
                     ])
             if not avatars:
-                return WebUserRoutes._response_exception(
+                return _response_exception(
                         response, 'Avatar not found', 404, logger)
             avatar = avatars[0]
 
@@ -175,7 +238,7 @@ class WebUserRoutes:
             return response
 
         except Exception as e:
-            WebUserRoutes._response_exception(response, e, 500, logger)
+            return _response_exception(response, e, 500, logger)
 
     @staticmethod
     def _check_email_config():
@@ -189,17 +252,17 @@ class WebUserRoutes:
         get_config('email', 'uri')
         get_config('email', 'from')
 
-    @staticmethod
-    def _response_exception(response, e, status, logger):
-        Transaction().rollback()
-        if hasattr(e, 'message'):
-            message = e.message
-        else:
-            message = str(e)
 
-        if status >= 500:
-            logger.error(message)
-        else:
-            logger.warning(message)
+def _response_exception(response, e, status, logger):
+    Transaction().rollback()
+    if hasattr(e, 'message'):
+        message = e.message
+    else:
+        message = str(e)
 
-        return response(message, status)
+    if status >= 500:
+        logger.error(message)
+    else:
+        logger.warning(message)
+
+    return response(message, status)

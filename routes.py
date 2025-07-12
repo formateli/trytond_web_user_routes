@@ -34,9 +34,25 @@ def web_user_me(request, pool):
             Response, request, pool, logger)
 
 
+@app.route('/<database_name>/web-user-password', methods=['PUT'])
+@with_pool
+@with_transaction()
+def web_user_password(request, pool):
+    return WebUserRoutes.web_user_password(
+            Response, request, pool, logger)
+
+
 @app.route('/<database_name>/web-user-avatar/<uuid>', methods={'GET'})
 @with_pool
 @with_transaction()
 def web_user_avatar(request, pool, uuid):
     return WebUserRoutes.web_user_avatar(
             Response, request, pool, logger, uuid)
+
+
+@app.route('/<database_name>/web-user-email-verify', methods={'PUT'})
+@with_pool
+@with_transaction()
+def web_user_email_verify(request, pool):
+    return WebUserRoutes.web_user_email_verify(
+            Response, request, pool, logger)
