@@ -42,6 +42,14 @@ def web_user_password(request, pool):
             Response, request, pool, logger)
 
 
+@app.route('/<database_name>/web-user-password-reset', methods={'POST', 'PUT'})
+@with_pool
+@with_transaction()
+def web_user_password_reset(request, pool):
+    return WebUserRoutes.web_user_password_reset(
+            Response, request, pool, logger)
+
+
 @app.route('/<database_name>/web-user-avatar/<uuid>', methods={'GET'})
 @with_pool
 @with_transaction()

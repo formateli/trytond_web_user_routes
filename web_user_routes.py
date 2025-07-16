@@ -190,15 +190,63 @@ class WebUserRoutes:
                     response, e, 500, logger)
 
     @staticmethod
+    def web_user_password_reset(response, request, pool, logger, auth_email=True):
+        User = pool.get('res.user')
+        WebUser = pool.get('web.user')
+        try:
+            args = request.get_json(False)
+
+            if request.method == 'POST':
+                users = WebUser.search([('email', '=', args['email'])])
+                if not users:
+                    return _response_exception(
+                        response, 'Email not found.', 404, logger)
+                user = users[0]
+                if auth_email:
+                    logger.info(
+                            'Sending email verification to {}'.format(
+                                user.email))
+                    WebUserRoutes._check_email_config()
+                    WebUser.reset_password([user])
+                    return {
+                        'message': "Email was sent to {} for reset password process.".format(
+                            user.email)
+                        }
+
+                return _response_exception(
+                    response, "Email system not working.", 500, logger)
+
+            if request.method == 'PUT':
+                users = WebUser.search([('email', '=', args['email'])])
+                if not users:
+                    return _response_exception(
+                        response, 'User not found.', 404, logger)
+                user = users[0]
+                User.validate_password(args['password'], [user])
+                res = WebUser.set_password_token(
+                        user.email, args['token'], args['password'])
+                if res:
+                    return {'message': 'Password reset successfully.'}
+                return _response_exception(
+                        response, 'Inalid token.', 404, logger)
+
+            return _response_exception(
+                    response, 'Inalid request.', 500, logger)
+
+        except (PasswordError, UserValidationError) as e:
+            return _response_exception(
+                    response, e, 403, logger)
+        except Exception as e:
+            return _response_exception(
+                    response, e, 500, logger)
+
+    @staticmethod
     def web_user_email_verify(response, request, pool, logger):
         WebUser = pool.get('web.user')
 
         try:
             args = request.get_json(False)
             logger.info('TOKEN: ' + args['token'])
-
-            fr = WebUser.search([('email', '=', 'formateli@gmail.com')])[0]
-            logger.info("FR TOKEN: {}".format(fr.email_token))
 
             users = WebUser.validate_email_token([args['token']])
             if not users:
