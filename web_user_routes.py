@@ -144,17 +144,29 @@ class WebUserRoutes:
         except Exception as e:
             return _response_exception(response, e, 500, logger)
 
+    @login_required()
     @staticmethod
-    def web_user_me(response, request, pool, logger):
+    def web_user_me(response, request, pool, logger, user=None):
         WebUser = pool.get('web.user')
 
         try:
-            auth = request.authorization
-            user = WebUser.get_user(auth.token)
-            if user is None:
-                return _response_exception(
-                    response, 'Invalid token.', 401, logger)
+            #if request.method == 'GET':
+            #    return user.to_json()
+
+            if request.method == 'PUT':
+                args = request.get_json(False)
+                party = user.party
+                party.name = args['name']
+                party.save()
+                user.save()
+
             return user.to_json()
+
+            return _response_exception(
+                response,
+                'Invalid request method {}.'.format(request.method),
+                405, logger)
+
         except Exception as e:
             return _response_exception(
                     response, e, 500, logger)

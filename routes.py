@@ -26,7 +26,7 @@ def web_user_token(request, pool):
             Response, request, pool, logger, AUTH)
 
 
-@app.route('/<database_name>/web-user-me', methods=['GET'])
+@app.route('/<database_name>/web-user-me', methods=['GET', 'PUT'])
 @with_pool
 @with_transaction()
 def web_user_me(request, pool):
